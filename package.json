@@ -1,0 +1,7 @@
+{
+  "name": "openrouter-oneshot",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "openrouter-oneshot": "src/index.ts" },
+  "dependencies": { "openai": "^4" }
+}
