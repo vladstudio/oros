@@ -11,7 +11,13 @@ const useTools: string[] = [];
 for (let i = 0; i < argv.length; i++) {
   switch (argv[i]) {
     case "-m": case "--model": model = argv[++i] ?? ""; break;
-    case "-p": case "--prompt": prompt = argv[++i] ?? ""; break;
+    case "-p": case "--prompt-file": {
+      const pf = argv[++i] ?? "";
+      const f = Bun.file(pf);
+      if (!(await f.exists())) { console.error(`Error: prompt file not found: ${pf}`); process.exit(1); }
+      prompt = await f.text();
+      break;
+    }
     case "-f": case "--file": files.push(argv[++i] ?? ""); break;
     case "-s": case "--system": systemPrompt = argv[++i] ?? ""; break;
     case "-u": case "--use-tools": useTools.push(...(argv[++i] ?? "").split(",")); break;
@@ -20,7 +26,19 @@ for (let i = 0; i < argv.length; i++) {
     case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
     case "-t": case "--timeout": { const v = parseInt(argv[++i]); timeout = Number.isNaN(v) ? 60 : v; break; }
     case "-h": case "--help":
-      console.log("Usage: openrouter-oneshot -m MODEL [-v] [-q] [-s SYSTEM] [-u TOOLS] [--max-turns N] [-t SECS] [-f FILE]... [-p] \"prompt\"");
+      console.log("Usage: openrouter-oneshot -m MODEL [options] \"prompt\"");
+      console.log("       openrouter-oneshot -m MODEL [options] -p prompt.txt");
+      console.log("\nPrompt is provided inline as positional args, or from a text file via -p.");
+      console.log("\nOptions:");
+      console.log("  -m, --model MODEL        Model ID (required)");
+      console.log("  -p, --prompt-file FILE   Read prompt from a text file");
+      console.log("  -f, --file FILE          Attach file(s) to context (repeatable)");
+      console.log("  -s, --system PROMPT      Override system prompt");
+      console.log("  -u, --use-tools TOOLS    Comma-separated tools to enable");
+      console.log("  -v, --verbose            Show timing and debug info on stderr");
+      console.log("  -q, --quiet              Suppress all output");
+      console.log("  -t, --timeout SECS       Timeout for API/commands (default: 60)");
+      console.log("  --max-turns N            Max agentic loop iterations (default: 100)");
       process.exit(0);
       break;
     case "--": prompt = argv.slice(i + 1).join(" "); i = argv.length; break;

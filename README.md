@@ -22,13 +22,16 @@ bun link
 
 ```
 openrouter-oneshot -m MODEL [options] "prompt"
+openrouter-oneshot -m MODEL [options] -p prompt.txt
 ```
+
+Prompt is provided inline as positional args, or read from a text file via `-p`.
 
 **Options:**
 
 - `-m, --model` -- model ID (required), e.g. `openai/gpt-4o`, `anthropic/claude-sonnet-4`
+- `-p, --prompt-file FILE` -- read prompt from a text file
 - `-f, --file FILE` -- attach file(s) to context before running (repeatable; images sent as vision input)
-- `-p, --prompt` -- explicit prompt flag (otherwise positional args are used)
 - `-s, --system PROMPT` -- override the default system prompt
 - `-u, --use-tools TOOLS` -- comma-separated list of tools to enable (e.g. `read_file,write_file`); use `-u none` to disable all tools
 - `-v, --verbose` -- show timing, turn info, and tool result sizes on stderr
@@ -52,6 +55,9 @@ The model can call these automatically:
 ```bash
 # Attach files (images get vision input)
 openrouter-oneshot -m openai/gpt-4o -f screenshot.webp "extract text from this image"
+
+# Prompt from file
+openrouter-oneshot -m anthropic/claude-sonnet-4 -p task.txt
 
 # Code task
 openrouter-oneshot -m anthropic/claude-sonnet-4 "read src/index.ts and add input validation"
