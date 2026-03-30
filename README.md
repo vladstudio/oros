@@ -1,6 +1,6 @@
 # openrouter-oneshot
 
-Run single prompts with any [OpenRouter](https://openrouter.ai) model. The model gets tools (read/write files, list dirs, run commands, vision) and uses them autonomously in a loop until the task is done.
+Run single prompts with any [OpenRouter](https://openrouter.ai) model. The model gets tools (read/write files, list dirs, run commands, web search/fetch, vision) and uses them autonomously in a loop until the task is done.
 
 ```
 export OPENROUTER_API_KEY=your-key
@@ -50,6 +50,9 @@ The model can call these automatically:
 - **list_directory** -- list files and directories
 - **file_tree** -- recursive directory tree (respects .gitignore, max depth 5)
 - **bash** -- execute shell commands (excluded by default; include via `-u`)
+- **web_html** -- fetch a URL and return raw HTML
+- **web_md** -- fetch a URL and return content as clean Markdown
+- **web_search** -- search the web via DuckDuckGo, returns results as Markdown
 
 ## Examples
 
@@ -62,6 +65,9 @@ openrouter-oneshot -m anthropic/claude-sonnet-4 -p task.txt
 
 # Code task
 openrouter-oneshot -m anthropic/claude-sonnet-4 "read src/index.ts and add input validation"
+
+# Web research
+openrouter-oneshot -m anthropic/claude-sonnet-4 "search for bun sqlite docs and summarize the API"
 
 # With shell access
 openrouter-oneshot -m google/gemini-2.5-pro -u read_file,bash "find all TODO comments in this project"

@@ -9,6 +9,86 @@ const CWD = await realpath(process.cwd());
 const MAX_OUTPUT = 1_000_000;
 const MAX_CMD_TIMEOUT = 300;
 
+function decodeEntities(s: string): string {
+  const map: Record<string, string> = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+    mdash: '\u2014', ndash: '\u2013', hellip: '\u2026', bull: '\u2022',
+    lsquo: '\u2018', rsquo: '\u2019', ldquo: '\u201C', rdquo: '\u201D',
+    copy: '\u00A9', reg: '\u00AE', trade: '\u2122', laquo: '\u00AB', raquo: '\u00BB',
+  };
+  return s.replace(/&(?:#(\d+)|#x([0-9a-f]+)|(\w+));/gi, (m, dec, hex, name) =>
+    dec ? String.fromCharCode(+dec) : hex ? String.fromCharCode(parseInt(hex, 16)) : map[name?.toLowerCase()] ?? m
+  );
+}
+
+function htmlToMd(html: string): string {
+  let s = html;
+  // Remove junk elements
+  s = s.replace(/<(script|style|head|nav|footer|header|noscript|svg|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  s = s.replace(/<!--[\s\S]*?-->/g, '');
+  // Code blocks → placeholders
+  const cb: string[] = [];
+  s = s.replace(/<pre\b[^>]*>\s*<code\b([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>/gi, (_, attrs, code) => {
+    const lang = attrs.match(/\bclass="[^"]*\blanguage-(\w+)/i)?.[1] || '';
+    cb.push(`\n\`\`\`${lang}\n${decodeEntities(code.replace(/<[^>]+>/g, '')).trim()}\n\`\`\`\n`);
+    return `\x00${cb.length - 1}\x00`;
+  });
+  s = s.replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, (_, code) => {
+    cb.push(`\n\`\`\`\n${decodeEntities(code.replace(/<[^>]+>/g, '')).trim()}\n\`\`\`\n`);
+    return `\x00${cb.length - 1}\x00`;
+  });
+  // Inline elements (before block processing so nesting works)
+  s = s.replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**');
+  s = s.replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '_$1_');
+  s = s.replace(/<(?:del|s|strike)\b[^>]*>([\s\S]*?)<\/(?:del|s|strike)>/gi, '~~$1~~');
+  s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, (_, c) => `\`${c.replace(/<[^>]+>/g, '')}\``);
+  s = s.replace(/<img\b([^>]*?)\/?>/gi, (_, a) => {
+    const src = a.match(/\bsrc=["']?([^"'\s>]+)/i)?.[1] || '';
+    return src ? `![${(a.match(/\balt=["']([^"']*)/i)?.[1]) || ''}](${src})` : '';
+  });
+  s = s.replace(/<a\b[^>]*\bhref=["']?([^"'\s>]+)["']?[^>]*>([\s\S]*?)<\/a>/gi, (_, h, t) =>
+    `[${t.replace(/<[^>]+>/g, '').trim()}](${h})`);
+  // Block elements
+  s = s.replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi, (_, l, t) =>
+    `\n\n${'#'.repeat(+l)} ${t.replace(/<[^>]+>/g, '').trim()}\n\n`);
+  s = s.replace(/<table\b[^>]*>([\s\S]*?)<\/table>/gi, (_, tbl) => {
+    const rows = [...tbl.replace(/<\/?(thead|tbody|tfoot|caption)\b[^>]*>/gi, '')
+      .matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
+      .map(r => [...r[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map(c => c[1].replace(/<[^>]+>/g, '').trim()))
+      .filter(r => r.length);
+    if (!rows.length) return '';
+    const cols = Math.max(...rows.map(r => r.length));
+    let o = '\n\n';
+    rows.forEach((r, i) => {
+      const p = Array.from({ length: cols }, (_, j) => r[j] ?? '');
+      o += '| ' + p.join(' | ') + ' |\n';
+      if (i === 0) o += '|' + p.map(() => ' --- ').join('|') + '|\n';
+    });
+    return o + '\n';
+  });
+  s = s.replace(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, t) =>
+    '\n' + t.replace(/<[^>]+>/g, '').trim().split(/\n/).map((l: string) => `> ${l.trim()}`).join('\n') + '\n');
+  s = s.replace(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi, (_, c) => {
+    let n = 0; return '\n' + c.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_: string, t: string) =>
+      `\n${++n}. ${t.replace(/<[^>]+>/g, '').trim()}`).replace(/<[^>]+>/g, '') + '\n';
+  });
+  s = s.replace(/<ul\b[^>]*>([\s\S]*?)<\/ul>/gi, (_, c) =>
+    '\n' + c.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_: string, t: string) =>
+      `\n* ${t.replace(/<[^>]+>/g, '').trim()}`).replace(/<[^>]+>/g, '') + '\n');
+  s = s.replace(/<hr\b[^>]*\/?>/gi, '\n\n---\n\n');
+  s = s.replace(/<br\b[^>]*\/?>/gi, '\n');
+  s = s.replace(/<\/(?:p|div|section|article|aside|main|figure|figcaption|dd|dt)\s*>/gi, '\n\n');
+  s = s.replace(/<(?:p|div|section|article|aside|main|figure|figcaption|dd|dt)\b[^>]*>/gi, '\n\n');
+  // Cleanup
+  s = s.replace(/<[^>]+>/g, '');
+  s = decodeEntities(s);
+  s = s.replace(/\x00(\d+)\x00/g, (_, i) => cb[+i]);
+  s = s.replace(/[ \t]+/g, ' ');
+  s = s.replace(/^ +| +$/gm, '');
+  s = s.replace(/\n{3,}/g, '\n\n');
+  return s.trim();
+}
+
 async function safePath(p: string): Promise<string> {
   const resolved = resolve(p);
   let real: string;
@@ -41,6 +121,9 @@ export const tools = [
   def("list_directory", "List files and directories.", { path: { type: "string", description: "defaults to ." } }),
   def("file_tree", "Show recursive directory tree. Dirs first, sorted alphabetically.", { path: { type: "string", description: "defaults to ." } }),
   def("bash", "Run a shell command.", { command: { type: "string" } }, ["command"]),
+  def("web_html", "Fetch a URL and return raw HTML.", { url: { type: "string" } }, ["url"]),
+  def("web_md", "Fetch a URL and return content as clean Markdown.", { url: { type: "string" } }, ["url"]),
+  def("web_search", "Search the web via DuckDuckGo. Returns results as Markdown.", { query: { type: "string" } }, ["query"]),
 ];
 
 export async function execute(name: string, args: any, timeout = 60): Promise<string | any[]> {
@@ -124,6 +207,48 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
       if (errOut.text) result += `\nstderr:\n${errOut.text}`;
       if (errOut.truncated) result += `\n[stderr truncated at 1MB]`;
       return result;
+    }
+    if (name === "web_html" || name === "web_md") {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout * 1000);
+      try {
+        const resp = await fetch(args.url, { signal: controller.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; openrouter-oneshot/0.1)" }, redirect: "follow" });
+        if (!resp.ok) return `Error: HTTP ${resp.status} ${resp.statusText}`;
+        const html = await resp.text();
+        const out = name === "web_md" ? htmlToMd(html) : html;
+        return out.length > MAX_OUTPUT ? out.slice(0, MAX_OUTPUT) + `\n[truncated at ${MAX_OUTPUT} chars]` : out;
+      } catch (e: any) {
+        return `Error: ${e.message}`;
+      } finally { clearTimeout(timer); }
+    }
+    if (name === "web_search") {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout * 1000);
+      try {
+        const resp = await fetch("https://html.duckduckgo.com/html/", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `q=${encodeURIComponent(args.query)}`,
+          signal: controller.signal,
+        });
+        const html = await resp.text();
+        const links = [...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi)];
+        const snippets = [...html.matchAll(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi)];
+        if (!links.length) return "No results found.";
+        let md = '';
+        for (let i = 0; i < links.length && i < 10; i++) {
+          const title = decodeEntities(links[i][2].replace(/<[^>]+>/g, '').trim());
+          let url = links[i][1];
+          try { url = decodeURIComponent(new URL(url, "https://duckduckgo.com").searchParams.get("uddg") || url); } catch {}
+          const snippet = snippets[i] ? decodeEntities(snippets[i][1].replace(/<[^>]+>/g, '').trim()) : '';
+          md += `${i + 1}. [${title}](${url})\n`;
+          if (snippet) md += `   ${snippet}\n`;
+          md += '\n';
+        }
+        return md;
+      } catch (e: any) {
+        return `Error: ${e.message}`;
+      } finally { clearTimeout(timer); }
     }
     return `Unknown tool: ${name}`;
   } catch (e: any) {
