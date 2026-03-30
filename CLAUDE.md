@@ -15,8 +15,8 @@ Single-file-ish CLI that runs one-shot agentic prompts via OpenRouter. Bun + Typ
 - No build step. `src/index.ts` runs directly via `bun`.
 - Keep it minimal. Two source files. Avoid new dependencies unless absolutely necessary.
 - Tool output to stdout, diagnostics/progress to stderr.
-- All file tools are sandboxed to cwd via `safePath()`.
-- `--allow-commands` gates shell access; without it, `run_command` is hidden from the model entirely.
+- All file tools are sandboxed to cwd and `/tmp` via `safePath()`.
+- `bash` tool is excluded by default; enable it via `-u` (e.g. `-u read_file,bash`).
 
 ## Running
 

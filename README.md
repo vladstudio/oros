@@ -34,10 +34,11 @@ Prompt is provided inline as positional args, or read from a text file via `-p`.
 - `-f, --file FILE` -- attach file(s) to context before running (repeatable; images sent as vision input)
 - `-s, --system PROMPT` -- override the default system prompt
 - `-u, --use-tools TOOLS` -- comma-separated list of tools to enable (e.g. `read_file,write_file`); use `-u none` to disable all tools
+- `-y` -- enable all tools (including `bash`)
 - `-v, --verbose` -- show timing, turn info, and tool result sizes on stderr
 - `-q, --quiet` -- suppress all output (overrides `-v`)
 - `-t, --timeout SECS` -- timeout for API streams and commands (default: 60, 0 = none)
-- `--max-turns N` -- max agentic loop iterations (default: 100)
+- `-x, --max-turns N` -- max agentic loop iterations (default: 100)
 - `--` -- treat all remaining arguments as the prompt
 
 ## Built-in tools
@@ -45,10 +46,10 @@ Prompt is provided inline as positional args, or read from a text file via `-p`.
 The model can call these automatically:
 
 - **read_file** -- read text files; images (png/jpg/webp/gif/bmp/svg) are sent as vision input
-- **write_file** -- write content to files (sandboxed to working directory)
+- **write_file** -- write content to files (sandboxed to working directory and `/tmp`)
 - **list_directory** -- list files and directories
 - **file_tree** -- recursive directory tree (respects .gitignore, max depth 5)
-- **run_command** -- execute shell commands (excluded by default; include via `-u`)
+- **bash** -- execute shell commands (excluded by default; include via `-u`)
 
 ## Examples
 
@@ -63,7 +64,7 @@ openrouter-oneshot -m anthropic/claude-sonnet-4 -p task.txt
 openrouter-oneshot -m anthropic/claude-sonnet-4 "read src/index.ts and add input validation"
 
 # With shell access
-openrouter-oneshot -m google/gemini-2.5-pro -u read_file,run_command "find all TODO comments in this project"
+openrouter-oneshot -m google/gemini-2.5-pro -u read_file,bash "find all TODO comments in this project"
 
 # No tools (plain completion, works with any model)
 openrouter-oneshot -m meta-llama/llama-3-8b -u none "explain quicksort"

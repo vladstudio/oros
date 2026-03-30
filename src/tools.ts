@@ -15,7 +15,7 @@ async function safePath(p: string): Promise<string> {
   try { real = await realpath(resolved); } catch {
     real = join(await realpath(dirname(resolved)), basename(resolved));
   }
-  if (real !== CWD && !real.startsWith(CWD + "/")) throw new Error(`Path outside working directory: ${p}`);
+  if (real !== CWD && !real.startsWith(CWD + "/") && !real.startsWith("/tmp/")) throw new Error(`Path outside working directory: ${p}`);
   return real;
 }
 
@@ -39,7 +39,7 @@ export const tools = [
   def("write_file", "Write content to a file.", { path: { type: "string" }, content: { type: "string" } }, ["path", "content"]),
   def("list_directory", "List files and directories.", { path: { type: "string", description: "defaults to ." } }),
   def("file_tree", "Show recursive directory tree. Dirs first, sorted alphabetically.", { path: { type: "string", description: "defaults to ." } }),
-  def("run_command", "Run a shell command.", { command: { type: "string" } }, ["command"]),
+  def("bash", "Run a shell command.", { command: { type: "string" } }, ["command"]),
 ];
 
 export async function execute(name: string, args: any, timeout = 60): Promise<string | any[]> {
@@ -57,9 +57,9 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
           { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
         ];
       }
-      if (size > 100_000) return `Error: file too large (${(size / 1024).toFixed(0)}KB). Use run_command to process it.`;
+      if (size > 100_000) return `Error: file too large (${(size / 1024).toFixed(0)}KB). Use bash to process it.`;
       const buf = Buffer.from(await file.slice(0, 512).arrayBuffer());
-      if (buf.includes(0)) return `Error: binary file (${extname(path)}). Use run_command to process it.`;
+      if (buf.includes(0)) return `Error: binary file (${extname(path)}). Use bash to process it.`;
       return await file.text();
     }
     if (name === "write_file") {
@@ -108,7 +108,7 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
       const tree = await buildTree(dir, "", 0);
       return basename(dir) + "\n" + tree + (truncated ? `[truncated — max depth ${MAX_DEPTH}, max entries ${MAX_ENTRIES}]\n` : "");
     }
-    if (name === "run_command") {
+    if (name === "bash") {
       const cmdTimeout = timeout > 0 ? Math.min(timeout, MAX_CMD_TIMEOUT) : MAX_CMD_TIMEOUT;
       const p = Bun.spawn(["sh", "-c", args.command], { stdout: "pipe", stderr: "pipe" });
       let timedOut = false;

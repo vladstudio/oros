@@ -21,9 +21,10 @@ for (let i = 0; i < argv.length; i++) {
     case "-f": case "--file": files.push(argv[++i] ?? ""); break;
     case "-s": case "--system": systemPrompt = argv[++i] ?? ""; break;
     case "-u": case "--use-tools": useTools.push(...(argv[++i] ?? "").split(",")); break;
+    case "-y": useTools.push(...allTools.map(t => t.function.name)); break;
     case "-v": case "--verbose": verbose = true; break;
     case "-q": case "--quiet": quiet = true; break;
-    case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
+    case "-x": case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
     case "-t": case "--timeout": { const v = parseInt(argv[++i]); timeout = Number.isNaN(v) ? 60 : v; break; }
     case "-h": case "--help":
       console.log("Usage: openrouter-oneshot -m MODEL [options] \"prompt\"");
@@ -35,10 +36,13 @@ for (let i = 0; i < argv.length; i++) {
       console.log("  -f, --file FILE          Attach file(s) to context (repeatable)");
       console.log("  -s, --system PROMPT      Override system prompt");
       console.log("  -u, --use-tools TOOLS    Comma-separated tools to enable");
+      console.log("  -y                       Enable all tools (including bash)");
       console.log("  -v, --verbose            Show timing and debug info on stderr");
       console.log("  -q, --quiet              Suppress all output");
       console.log("  -t, --timeout SECS       Timeout for API/commands (default: 60)");
-      console.log("  --max-turns N            Max agentic loop iterations (default: 100)");
+      console.log("  -x, --max-turns N        Max agentic loop iterations (default: 100)");
+      console.log("\nTools: " + allTools.map(t => t.function.name).join(", "));
+      console.log("  Default: all except bash. Use -y to enable all, -u to pick.");
       process.exit(0);
       break;
     case "--": prompt = argv.slice(i + 1).join(" "); i = argv.length; break;
@@ -53,7 +57,7 @@ if (quiet) verbose = false;
 const log = verbose ? (msg: string) => console.error(`[${(performance.now() / 1000).toFixed(1)}s] ${msg}`) : () => {};
 const err = quiet ? () => {} : (msg: string) => console.error(msg);
 const client = new OpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY });
-const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => t.function.name !== "run_command");
+const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => t.function.name !== "bash");
 const toolNames = new Set(tools.map(t => t.function.name));
 const MAX_CTX_CHARS = 400_000;
 function msgSize(msgs: any[]): number {
