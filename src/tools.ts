@@ -15,7 +15,8 @@ async function safePath(p: string): Promise<string> {
   try { real = await realpath(resolved); } catch {
     real = join(await realpath(dirname(resolved)), basename(resolved));
   }
-  if (real !== CWD && !real.startsWith(CWD + "/") && !real.startsWith("/tmp/")) throw new Error(`Path outside working directory: ${p}`);
+  if (real !== CWD && !real.startsWith(CWD + "/") && !real.startsWith("/tmp/") && !real.startsWith("/private/tmp/"))
+    throw new Error(`Path not allowed. Allowed: ${CWD} and /tmp. Got: ${real}`);
   return real;
 }
 
