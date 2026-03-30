@@ -17,6 +17,7 @@ Single-file-ish CLI that runs one-shot agentic prompts via OpenRouter. Bun + Typ
 - Tool output to stdout, diagnostics/progress to stderr.
 - All file tools are sandboxed to cwd and `/tmp` via `safePath()`.
 - `bash` tool is excluded by default; enable it via `-u` (e.g. `-u read_file,bash`).
+- `edit_file` tool does surgical string-replacement edits (batched, unique-match). Prefer over `write_file` when modifying existing files.
 - Web tools (`web_html`, `web_md`, `web_search`) use native `fetch()`. HTML→Markdown conversion is a zero-dep regex-based `htmlToMd()` function in tools.ts.
 
 ## Running

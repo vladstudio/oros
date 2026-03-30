@@ -118,6 +118,10 @@ function def(name: string, desc: string, params: Record<string, any>, required?:
 export const tools = [
   def("read_file", "Read a file. Returns image for vision if image file.", { path: { type: "string" } }, ["path"]),
   def("write_file", "Write content to a file.", { path: { type: "string" }, content: { type: "string" } }, ["path", "content"]),
+  def("edit_file", "Apply surgical text replacements to a file. More efficient than write_file for edits.", {
+    path: { type: "string" },
+    edits: { type: "array", items: { type: "object", properties: { old: { type: "string", description: "Exact text to find (must match exactly once)" }, new: { type: "string", description: "Replacement text" } }, required: ["old", "new"] }, description: "Edits applied sequentially." },
+  }, ["path", "edits"]),
   def("list_directory", "List files and directories.", { path: { type: "string", description: "defaults to ." } }),
   def("file_tree", "Show recursive directory tree. Dirs first, sorted alphabetically.", { path: { type: "string", description: "defaults to ." } }),
   def("bash", "Run a shell command.", { command: { type: "string" } }, ["command"]),
@@ -151,6 +155,20 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
       const exists = await Bun.file(path).exists();
       await Bun.write(path, args.content);
       return `Written: ${args.path} (${args.content.length} chars)${exists ? " [overwritten]" : ""}`;
+    }
+    if (name === "edit_file") {
+      const path = await safePath(args.path);
+      let text = await Bun.file(path).text();
+      const lines: number[] = [];
+      for (const edit of args.edits) {
+        const idx = text.indexOf(edit.old);
+        if (idx === -1) return `Error: no match for edit in ${args.path}:\n${edit.old.slice(0, 200)}`;
+        if (text.indexOf(edit.old, idx + 1) !== -1) return `Error: multiple matches (${text.split(edit.old).length - 1}) for edit in ${args.path}. Provide more context to make it unique.`;
+        lines.push(text.slice(0, idx).split("\n").length);
+        text = text.slice(0, idx) + edit.new + text.slice(idx + edit.old.length);
+      }
+      await Bun.write(path, text);
+      return `Edited: ${args.path} (${args.edits.length} edit${args.edits.length > 1 ? "s" : ""}, line${lines.length > 1 ? "s" : ""} ${lines.join(", ")})`;
     }
     if (name === "list_directory") {
       const dir = await safePath(args.path || ".");

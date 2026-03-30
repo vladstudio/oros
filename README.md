@@ -1,6 +1,6 @@
 # openrouter-oneshot
 
-Run single prompts with any [OpenRouter](https://openrouter.ai) model. The model gets tools (read/write files, list dirs, run commands, web search/fetch, vision) and uses them autonomously in a loop until the task is done.
+Run single prompts with any [OpenRouter](https://openrouter.ai) model. The model gets tools (read/write/edit files, list dirs, run commands, web search/fetch, vision) and uses them autonomously in a loop until the task is done.
 
 ```
 export OPENROUTER_API_KEY=your-key
@@ -47,6 +47,7 @@ The model can call these automatically:
 
 - **read_file** -- read text files; images (png/jpg/webp/gif/bmp/svg) are sent as vision input
 - **write_file** -- write content to files (sandboxed to working directory and `/tmp`)
+- **edit_file** -- surgical find-and-replace edits (batched, unique-match; far cheaper than rewriting via `write_file`)
 - **list_directory** -- list files and directories
 - **file_tree** -- recursive directory tree (respects .gitignore, max depth 5)
 - **bash** -- execute shell commands (excluded by default; include via `-u`)
