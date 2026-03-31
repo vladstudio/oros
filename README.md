@@ -12,7 +12,7 @@ openrouter-oneshot -m anthropic/claude-sonnet-4 "summarize all .ts files in this
 Requires [Bun](https://bun.sh).
 
 ```
-git clone https://github.com/nicepkg/openrouter-oneshot.git
+git clone https://github.com/vladstudio/openrouter-oneshot.git
 cd openrouter-oneshot
 bun install
 bun link
@@ -34,6 +34,8 @@ Prompt is provided inline as positional args, or read from a text file via `-p`.
 - `-f, --file FILE` -- attach file(s) to context before running (repeatable; images sent as vision input)
 - `-s, --system PROMPT` -- override the default system prompt
 - `-u, --use-tools TOOLS` -- comma-separated list of tools to enable (e.g. `read_file,write_file`); use `-u none` to disable all tools
+- `-o, --output-history FILE` -- save conversation history to a JSON file on exit
+- `-r, --resume FILE` -- resume from a history file (positional prompt = answer to pending question); implies `-o` to the same file
 - `-y` -- enable all tools (including `bash`)
 - `-v, --verbose` -- show timing, turn info, and tool result sizes on stderr
 - `-q, --quiet` -- suppress all output (overrides `-v`)
@@ -54,6 +56,7 @@ The model can call these automatically:
 - **web_html** -- fetch a URL and return raw HTML
 - **web_md** -- fetch a URL and return content as clean Markdown
 - **web_search** -- search the web via DuckDuckGo, returns results as Markdown
+- **ask_question** -- ask the user a question when essential info is missing (exits with code 10; resume with `-r`)
 
 ## Examples
 
@@ -75,6 +78,11 @@ openrouter-oneshot -m google/gemini-2.5-pro -u read_file,bash "find all TODO com
 
 # No tools (plain completion, works with any model)
 openrouter-oneshot -m meta-llama/llama-3-8b -u none "explain quicksort"
+
+# Interactive: model asks a question, you resume with the answer
+openrouter-oneshot -m anthropic/claude-sonnet-4 -o h.json "set up a database"
+# → exits with code 10, prints question, saves history to h.json
+openrouter-oneshot -m anthropic/claude-sonnet-4 -r h.json "PostgreSQL"
 
 # Debug a stuck run
 openrouter-oneshot -v -m openai/gpt-4o -t 120 "your prompt"
