@@ -132,6 +132,7 @@ export const tools = [
   def("web_html", "Fetch a URL and return raw HTML.", { url: { type: "string" } }, ["url"]),
   def("web_md", "Fetch a URL and return content as clean Markdown.", { url: { type: "string" } }, ["url"]),
   def("web_search", "Search the web via DuckDuckGo. Returns results as Markdown.", { query: { type: "string" } }, ["query"]),
+  def("ask_question", "Ask the user a question and wait for their response. Use when you need clarification or a decision to proceed.", { question: { type: "string" } }, ["question"]),
 ];
 
 export async function execute(name: string, args: any, timeout = 60): Promise<string | any[]> {

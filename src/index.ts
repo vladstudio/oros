@@ -3,8 +3,10 @@ import OpenAI from "openai";
 import { tools as allTools, execute } from "./tools";
 
 const argv = process.argv.slice(2);
-let model = "", prompt = "", maxTurns = 100, verbose = false, quiet = false, timeout = 60, historyFile = "";
-let systemPrompt = "You are a non-interactive CLI tool. Execute the user's request directly using the available tools. Never ask questions, never ask for confirmation, never present options. Just do the task.";
+let model = "", prompt = "", maxTurns = 100, verbose = false, quiet = false, timeout = 60, historyFile = "", resumeFile = "";
+const defaultPrompt = "You are a CLI tool. Execute the user's request directly using the available tools. Never ask for confirmation, never present options. Just do the task.";
+const interactivePrompt = "You are a CLI tool. Execute the user's request directly using the available tools. If you need essential information to proceed, use the ask_question tool. Never ask for confirmation, never present options — only ask when you truly cannot proceed without user input.";
+let systemPrompt = "";
 const files: string[] = [];
 const useTools: string[] = [];
 
@@ -23,6 +25,7 @@ for (let i = 0; i < argv.length; i++) {
     case "-u": case "--use-tools": useTools.push(...(argv[++i] ?? "").split(",")); break;
     case "-y": useTools.push(...allTools.map(t => t.function.name)); break;
     case "-o": case "--output-history": historyFile = argv[++i] ?? ""; break;
+    case "-r": case "--resume": resumeFile = argv[++i] ?? ""; break;
     case "-v": case "--verbose": verbose = true; break;
     case "-q": case "--quiet": quiet = true; break;
     case "-x": case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
@@ -39,6 +42,7 @@ for (let i = 0; i < argv.length; i++) {
       console.log("  -u, --use-tools TOOLS    Comma-separated tools to enable");
       console.log("  -y                       Enable all tools (including bash)");
       console.log("  -o, --output-history FILE Save conversation history to JSON file");
+      console.log("  -r, --resume FILE        Resume from history file (prompt = answer)");
       console.log("  -v, --verbose            Show timing and debug info on stderr");
       console.log("  -q, --quiet              Suppress all output");
       console.log("  -t, --timeout SECS       Timeout for API/commands (default: 60)");
@@ -52,6 +56,7 @@ for (let i = 0; i < argv.length; i++) {
   }
 }
 
+if (resumeFile) historyFile = resumeFile;
 if (!model || !prompt) { console.error("Usage: openrouter-oneshot -m MODEL \"prompt\""); process.exit(1); }
 if (!process.env.OPENROUTER_API_KEY) { console.error("OPENROUTER_API_KEY not set"); process.exit(1); }
 
@@ -61,6 +66,7 @@ const err = quiet ? () => {} : (msg: string) => console.error(msg);
 const client = new OpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY });
 const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => t.function.name !== "bash");
 const toolNames = new Set(tools.map(t => t.function.name));
+if (!systemPrompt) systemPrompt = toolNames.has("ask_question") ? interactivePrompt : defaultPrompt;
 const MAX_CTX_CHARS = 400_000;
 function msgSize(msgs: any[]): number {
   let s = 0;
@@ -72,25 +78,38 @@ function msgSize(msgs: any[]): number {
   return s;
 }
 
-// build initial messages
-const messages: any[] = [
-  { role: "system", content: systemPrompt },
-  { role: "user", content: prompt },
-];
-if (files.length) {
-  const toolCalls: any[] = [];
-  const toolResults: any[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    const id = `preload_${i}`;
-    toolCalls.push({ id, type: "function", function: { name: "read_file", arguments: JSON.stringify({ path: f }) } });
-    const result = await execute("read_file", { path: f }, timeout);
-    if (typeof result === "string" && result.startsWith("Error:")) { console.error(result); process.exit(1); }
-    log(`attached: ${f} (${typeof result === "string" ? result.length + " chars" : "image"})`);
-    toolResults.push({ role: "tool", tool_call_id: id, content: result as any });
+// build or restore messages
+let messages: any[];
+if (resumeFile) {
+  const f = Bun.file(resumeFile);
+  if (!(await f.exists())) { console.error(`Error: resume file not found: ${resumeFile}`); process.exit(1); }
+  messages = JSON.parse(await f.text());
+  // find the pending ask_question tool_call and append the answer
+  const lastAssistant = [...messages].reverse().find((m: any) => m.role === "assistant" && m.tool_calls);
+  const askCall = lastAssistant?.tool_calls?.find((tc: any) => tc.function.name === "ask_question");
+  if (!askCall) { console.error("Error: no pending ask_question in history"); process.exit(1); }
+  messages.push({ role: "tool", tool_call_id: askCall.id, content: prompt });
+  log(`resumed from ${resumeFile}, injected answer`);
+} else {
+  messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: prompt },
+  ];
+  if (files.length) {
+    const toolCalls: any[] = [];
+    const toolResults: any[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const id = `preload_${i}`;
+      toolCalls.push({ id, type: "function", function: { name: "read_file", arguments: JSON.stringify({ path: f }) } });
+      const result = await execute("read_file", { path: f }, timeout);
+      if (typeof result === "string" && result.startsWith("Error:")) { console.error(result); process.exit(1); }
+      log(`attached: ${f} (${typeof result === "string" ? result.length + " chars" : "image"})`);
+      toolResults.push({ role: "tool", tool_call_id: id, content: result as any });
+    }
+    messages.push({ role: "assistant", content: null, tool_calls: toolCalls });
+    messages.push(...toolResults);
   }
-  messages.push({ role: "assistant", content: null, tool_calls: toolCalls });
-  messages.push(...toolResults);
 }
 
 log(`model=${model} tools=${tools.map(t => t.function.name).join(",")}`);
@@ -158,6 +177,15 @@ for (let turn = 0; turn < maxTurns; turn++) {
     err(`[tool] ${tc.name}(${JSON.stringify(args)})`);
     return { tc, args };
   });
+
+  // handle ask_question: save history and exit
+  const askCall = calls.find(c => c.tc.name === "ask_question");
+  if (askCall) {
+    if (!quiet) process.stdout.write(`\n${askCall.args.question ?? ""}\n`);
+    if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
+    process.exit(10);
+  }
+
   const results = await Promise.all(calls.map(({ tc, args }) =>
     toolNames.has(tc.name) ? execute(tc.name, args, timeout) : Promise.resolve(`Error: tool "${tc.name}" not available`)
   ));
