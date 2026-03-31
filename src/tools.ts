@@ -1,4 +1,4 @@
-import { readdir, stat, realpath } from "fs/promises";
+import { readdir, stat, lstat, realpath } from "fs/promises";
 import { join, extname, resolve, dirname, basename } from "path";
 
 const MIME: Record<string, string> = {
@@ -97,6 +97,10 @@ async function safePath(p: string): Promise<string> {
   }
   if (real !== CWD && !real.startsWith(CWD + "/") && !real.startsWith("/tmp/") && !real.startsWith("/private/tmp/"))
     throw new Error(`Path not allowed. Allowed: ${CWD} and /tmp. Got: ${real}`);
+  if (real.startsWith("/tmp/") || real.startsWith("/private/tmp/")) {
+    try { if ((await lstat(resolved)).isSymbolicLink()) throw new Error(`Symlinks not allowed in /tmp: ${p}`); }
+    catch (e: any) { if (e.code !== "ENOENT") throw e; }
+  }
   return real;
 }
 
