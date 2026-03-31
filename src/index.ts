@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { tools as allTools, execute } from "./tools";
 
 const argv = process.argv.slice(2);
-let model = "", prompt = "", maxTurns = 100, verbose = false, quiet = false, timeout = 60;
+let model = "", prompt = "", maxTurns = 100, verbose = false, quiet = false, timeout = 60, historyFile = "";
 let systemPrompt = "You are a non-interactive CLI tool. Execute the user's request directly using the available tools. Never ask questions, never ask for confirmation, never present options. Just do the task.";
 const files: string[] = [];
 const useTools: string[] = [];
@@ -22,6 +22,7 @@ for (let i = 0; i < argv.length; i++) {
     case "-s": case "--system": systemPrompt = argv[++i] ?? ""; break;
     case "-u": case "--use-tools": useTools.push(...(argv[++i] ?? "").split(",")); break;
     case "-y": useTools.push(...allTools.map(t => t.function.name)); break;
+    case "-o": case "--output-history": historyFile = argv[++i] ?? ""; break;
     case "-v": case "--verbose": verbose = true; break;
     case "-q": case "--quiet": quiet = true; break;
     case "-x": case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
@@ -37,6 +38,7 @@ for (let i = 0; i < argv.length; i++) {
       console.log("  -s, --system PROMPT      Override system prompt");
       console.log("  -u, --use-tools TOOLS    Comma-separated tools to enable");
       console.log("  -y                       Enable all tools (including bash)");
+      console.log("  -o, --output-history FILE Save conversation history to JSON file");
       console.log("  -v, --verbose            Show timing and debug info on stderr");
       console.log("  -q, --quiet              Suppress all output");
       console.log("  -t, --timeout SECS       Timeout for API/commands (default: 60)");
@@ -193,5 +195,6 @@ for (let turn = 0; turn < maxTurns; turn++) {
 }
 
 if (printed) console.log();
+if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
 const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 err(`[done] ${elapsed}s${totalCost > 0 ? ` · $${totalCost.toFixed(4)}` : ""}`);
