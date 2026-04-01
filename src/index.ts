@@ -228,6 +228,9 @@ for (let turn = 0; turn < maxTurns; turn++) {
     messages[idx].content = `[truncated — was ${messages[idx].content.length} chars]`;
   }
 
+  // save history after each turn so callers can read progress
+  if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
+
   if (consecutiveErrors >= 3) { err("\n[abort] 3 consecutive failed tool rounds"); break; }
 }
 
