@@ -140,7 +140,7 @@ export const tools = [
   def("web_md", "Fetch a URL and return content as clean Markdown.", { url: { type: "string" } }, ["url"]),
   def("web_search", "Search the web via DuckDuckGo. Returns results as Markdown.", { query: { type: "string" } }, ["query"]),
   def("ask_question", "Ask the user a question and wait for their response. Use when you need clarification or a decision to proceed.", { question: { type: "string" } }, ["question"]),
-  def("signal_done", "Signal that the task completed successfully. Call this as the very last action.", {}),
+  def("signal_success", "Signal that the task completed successfully. Call this as the very last action.", {}),
 ];
 
 export async function execute(name: string, args: any, timeout = 60): Promise<string | any[]> {
@@ -270,7 +270,7 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
         for (let i = 0; i < links.length && i < 10; i++) {
           const title = decodeEntities(links[i][2].replace(/<[^>]+>/g, '').trim());
           let url = links[i][1];
-          try { url = decodeURIComponent(new URL(url, "https://duckduckgo.com").searchParams.get("uddg") || url); } catch {}
+          try { url = decodeURIComponent(new URL(url, "https://duckduckgo.com").searchParams.get("uddg") || url); } catch { }
           const snippet = snippets[i] ? decodeEntities(snippets[i][1].replace(/<[^>]+>/g, '').trim()) : '';
           md += `${i + 1}. [${title}](${url})\n`;
           if (snippet) md += `   ${snippet}\n`;

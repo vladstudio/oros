@@ -63,10 +63,10 @@ if (!model || !prompt) { console.error("Usage: oros -m MODEL \"prompt\""); proce
 if (!process.env.OPENROUTER_API_KEY) { console.error("OPENROUTER_API_KEY not set"); process.exit(1); }
 
 if (quiet) verbose = false;
-const log = verbose ? (msg: string) => console.error(`[${(performance.now() / 1000).toFixed(1)}s] ${msg}`) : () => {};
-const err = quiet ? () => {} : (msg: string) => console.error(msg);
+const log = verbose ? (msg: string) => console.error(`[${(performance.now() / 1000).toFixed(1)}s] ${msg}`) : () => { };
+const err = quiet ? () => { } : (msg: string) => console.error(msg);
 const client = new OpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY });
-const optIn = new Set(["bash", "signal_done"]);
+const optIn = new Set(["bash", "signal_success"]);
 const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => !optIn.has(t.function.name));
 const toolNames = new Set(tools.map(t => t.function.name));
 if (!systemPrompt) systemPrompt = toolNames.has("ask_question") ? interactivePrompt : defaultPrompt;
@@ -189,8 +189,8 @@ for (let turn = 0; turn < maxTurns; turn++) {
     process.exit(10);
   }
 
-  // handle signal_done: save history and exit
-  if (calls.find(c => c.tc.name === "signal_done")) {
+  // handle signal_success: save history and exit
+  if (calls.find(c => c.tc.name === "signal_success")) {
     if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
     process.exit(0);
   }
