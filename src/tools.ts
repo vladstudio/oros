@@ -6,6 +6,11 @@ const MIME: Record<string, string> = {
   ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp", ".svg": "image/svg+xml",
 };
 const CWD = await realpath(process.cwd());
+const EXTRA_PATHS = (process.env.OROS_ALLOWED_PATHS || "").split(":").filter(Boolean).map(p => resolve(p));
+
+export function allowPaths(...paths: string[]) {
+  EXTRA_PATHS.push(...paths.map(p => resolve(p)));
+}
 const MAX_OUTPUT = 1_000_000;
 const MAX_CMD_TIMEOUT = 300;
 
@@ -95,8 +100,10 @@ async function safePath(p: string): Promise<string> {
   try { real = await realpath(resolved); } catch {
     real = join(await realpath(dirname(resolved)), basename(resolved));
   }
-  if (real !== CWD && !real.startsWith(CWD + "/") && !real.startsWith("/tmp/") && !real.startsWith("/private/tmp/"))
-    throw new Error(`Path not allowed. Allowed: ${CWD} and /tmp. Got: ${real}`);
+  const allowed = real === CWD || real.startsWith(CWD + "/") || real.startsWith("/tmp/") || real.startsWith("/private/tmp/")
+    || EXTRA_PATHS.some(p => real === p || real.startsWith(p + "/"));
+  if (!allowed)
+    throw new Error(`Path not allowed. Allowed: ${CWD}, /tmp${EXTRA_PATHS.length ? ", " + EXTRA_PATHS.join(", ") : ""}. Got: ${real}`);
   if (real.startsWith("/tmp/") || real.startsWith("/private/tmp/")) {
     try { if ((await lstat(resolved)).isSymbolicLink()) throw new Error(`Symlinks not allowed in /tmp: ${p}`); }
     catch (e: any) { if (e.code !== "ENOENT") throw e; }
@@ -133,6 +140,7 @@ export const tools = [
   def("web_md", "Fetch a URL and return content as clean Markdown.", { url: { type: "string" } }, ["url"]),
   def("web_search", "Search the web via DuckDuckGo. Returns results as Markdown.", { query: { type: "string" } }, ["query"]),
   def("ask_question", "Ask the user a question and wait for their response. Use when you need clarification or a decision to proceed.", { question: { type: "string" } }, ["question"]),
+  def("signal_done", "Signal that the task completed successfully. Call this as the very last action.", {}),
 ];
 
 export async function execute(name: string, args: any, timeout = 60): Promise<string | any[]> {

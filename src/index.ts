@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import OpenAI from "openai";
-import { tools as allTools, execute } from "./tools";
+import { tools as allTools, execute, allowPaths } from "./tools";
 
 const argv = process.argv.slice(2);
 let model = "", prompt = "", maxTurns = 100, verbose = false, quiet = false, timeout = 60, historyFile = "", resumeFile = "";
@@ -23,6 +23,7 @@ for (let i = 0; i < argv.length; i++) {
     case "-f": case "--file": files.push(argv[++i] ?? ""); break;
     case "-s": case "--system": systemPrompt = argv[++i] ?? ""; break;
     case "-u": case "--use-tools": useTools.push(...(argv[++i] ?? "").split(",")); break;
+    case "-a": case "--allow": allowPaths(...(argv[++i] ?? "").split(":")); break;
     case "-y": useTools.push(...allTools.map(t => t.function.name)); break;
     case "-o": case "--output-history": historyFile = argv[++i] ?? ""; break;
     case "-r": case "--resume": resumeFile = argv[++i] ?? ""; break;
@@ -40,6 +41,7 @@ for (let i = 0; i < argv.length; i++) {
       console.log("  -f, --file FILE          Attach file(s) to context (repeatable)");
       console.log("  -s, --system PROMPT      Override system prompt");
       console.log("  -u, --use-tools TOOLS    Comma-separated tools to enable");
+      console.log("  -a, --allow PATHS        Extra allowed paths (colon-separated)");
       console.log("  -y                       Enable all tools (including bash)");
       console.log("  -o, --output-history FILE Save conversation history to JSON file");
       console.log("  -r, --resume FILE        Resume from history file (prompt = answer)");
@@ -64,7 +66,8 @@ if (quiet) verbose = false;
 const log = verbose ? (msg: string) => console.error(`[${(performance.now() / 1000).toFixed(1)}s] ${msg}`) : () => {};
 const err = quiet ? () => {} : (msg: string) => console.error(msg);
 const client = new OpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY });
-const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => t.function.name !== "bash");
+const optIn = new Set(["bash", "signal_done"]);
+const tools = useTools.length ? allTools.filter(t => useTools.includes(t.function.name)) : allTools.filter(t => !optIn.has(t.function.name));
 const toolNames = new Set(tools.map(t => t.function.name));
 if (!systemPrompt) systemPrompt = toolNames.has("ask_question") ? interactivePrompt : defaultPrompt;
 const MAX_CTX_CHARS = 400_000;
@@ -184,6 +187,12 @@ for (let turn = 0; turn < maxTurns; turn++) {
     if (!quiet) process.stdout.write(`\n${askCall.args.question ?? ""}\n`);
     if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
     process.exit(10);
+  }
+
+  // handle signal_done: save history and exit
+  if (calls.find(c => c.tc.name === "signal_done")) {
+    if (historyFile) await Bun.write(historyFile, JSON.stringify(messages, null, 2));
+    process.exit(0);
   }
 
   const results = await Promise.all(calls.map(({ tc, args }) =>

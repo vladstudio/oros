@@ -40,6 +40,7 @@ Prompt is provided inline as positional args, or read from a text file via `-p`.
 - `-v, --verbose` -- show timing, turn info, and tool result sizes on stderr
 - `-q, --quiet` -- suppress all output (overrides `-v`)
 - `-t, --timeout SECS` -- timeout for API streams and commands (default: 60, 0 = none)
+- `-a, --allow PATHS` -- extra allowed paths for file tools (colon-separated)
 - `-x, --max-turns N` -- max agentic loop iterations (default: 100)
 - `--` -- treat all remaining arguments as the prompt
 
