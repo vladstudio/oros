@@ -2,7 +2,7 @@
 
 ## Project
 
-Single-file-ish CLI that runs one-shot agentic prompts via OpenRouter. Bun + TypeScript, no build step.
+oros — single-file-ish CLI that runs one-shot agentic prompts via OpenRouter. Bun + TypeScript, no build step.
 
 ## Structure
 

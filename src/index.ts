@@ -31,8 +31,8 @@ for (let i = 0; i < argv.length; i++) {
     case "-x": case "--max-turns": { const v = parseInt(argv[++i]); maxTurns = Number.isNaN(v) ? 100 : v; break; }
     case "-t": case "--timeout": { const v = parseInt(argv[++i]); timeout = Number.isNaN(v) ? 60 : v; break; }
     case "-h": case "--help":
-      console.log("Usage: openrouter-oneshot -m MODEL [options] \"prompt\"");
-      console.log("       openrouter-oneshot -m MODEL [options] -p prompt.txt");
+      console.log("Usage: oros -m MODEL [options] \"prompt\"");
+      console.log("       oros -m MODEL [options] -p prompt.txt");
       console.log("\nPrompt is provided inline as positional args, or from a text file via -p.");
       console.log("\nOptions:");
       console.log("  -m, --model MODEL        Model ID (required)");
@@ -57,7 +57,7 @@ for (let i = 0; i < argv.length; i++) {
 }
 
 if (resumeFile) historyFile = resumeFile;
-if (!model || !prompt) { console.error("Usage: openrouter-oneshot -m MODEL \"prompt\""); process.exit(1); }
+if (!model || !prompt) { console.error("Usage: oros -m MODEL \"prompt\""); process.exit(1); }
 if (!process.env.OPENROUTER_API_KEY) { console.error("OPENROUTER_API_KEY not set"); process.exit(1); }
 
 if (quiet) verbose = false;

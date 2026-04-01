@@ -1,9 +1,9 @@
 {
-  "name": "openrouter-oneshot",
+  "name": "oros",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "openrouter-oneshot": "src/index.ts"
+    "oros": "src/index.ts"
   },
   "dependencies": {
     "openai": "^4"

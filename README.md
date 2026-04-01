@@ -1,10 +1,10 @@
-# openrouter-oneshot
+# oros
 
 Run single prompts with any [OpenRouter](https://openrouter.ai) model. The model gets tools (read/write/edit files, list dirs, run commands, web search/fetch, vision) and uses them autonomously in a loop until the task is done.
 
 ```
 export OPENROUTER_API_KEY=your-key
-openrouter-oneshot -m anthropic/claude-sonnet-4 "summarize all .ts files in this directory"
+oros -m anthropic/claude-sonnet-4 "summarize all .ts files in this directory"
 ```
 
 ## Install
@@ -12,8 +12,8 @@ openrouter-oneshot -m anthropic/claude-sonnet-4 "summarize all .ts files in this
 Requires [Bun](https://bun.sh).
 
 ```
-git clone https://github.com/vladstudio/openrouter-oneshot.git
-cd openrouter-oneshot
+git clone https://github.com/vladstudio/oros.git
+cd oros
 bun install
 bun link
 ```
@@ -21,8 +21,8 @@ bun link
 ## Usage
 
 ```
-openrouter-oneshot -m MODEL [options] "prompt"
-openrouter-oneshot -m MODEL [options] -p prompt.txt
+oros -m MODEL [options] "prompt"
+oros -m MODEL [options] -p prompt.txt
 ```
 
 Prompt is provided inline as positional args, or read from a text file via `-p`.
@@ -62,30 +62,30 @@ The model can call these automatically:
 
 ```bash
 # Attach files (images get vision input)
-openrouter-oneshot -m openai/gpt-4o -f screenshot.webp "extract text from this image"
+oros -m openai/gpt-4o -f screenshot.webp "extract text from this image"
 
 # Prompt from file
-openrouter-oneshot -m anthropic/claude-sonnet-4 -p task.txt
+oros -m anthropic/claude-sonnet-4 -p task.txt
 
 # Code task
-openrouter-oneshot -m anthropic/claude-sonnet-4 "read src/index.ts and add input validation"
+oros -m anthropic/claude-sonnet-4 "read src/index.ts and add input validation"
 
 # Web research
-openrouter-oneshot -m anthropic/claude-sonnet-4 "search for bun sqlite docs and summarize the API"
+oros -m anthropic/claude-sonnet-4 "search for bun sqlite docs and summarize the API"
 
 # With shell access
-openrouter-oneshot -m google/gemini-2.5-pro -u read_file,bash "find all TODO comments in this project"
+oros -m google/gemini-2.5-pro -u read_file,bash "find all TODO comments in this project"
 
 # No tools (plain completion, works with any model)
-openrouter-oneshot -m meta-llama/llama-3-8b -u none "explain quicksort"
+oros -m meta-llama/llama-3-8b -u none "explain quicksort"
 
 # Interactive: model asks a question, you resume with the answer
-openrouter-oneshot -m anthropic/claude-sonnet-4 -o h.json "set up a database"
+oros -m anthropic/claude-sonnet-4 -o h.json "set up a database"
 # → exits with code 10, prints question, saves history to h.json
-openrouter-oneshot -m anthropic/claude-sonnet-4 -r h.json "PostgreSQL"
+oros -m anthropic/claude-sonnet-4 -r h.json "PostgreSQL"
 
 # Debug a stuck run
-openrouter-oneshot -v -m openai/gpt-4o -t 120 "your prompt"
+oros -v -m openai/gpt-4o -t 120 "your prompt"
 ```
 
 Output streams to stdout, tool progress and cost/time summary go to stderr.

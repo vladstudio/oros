@@ -235,7 +235,7 @@ export async function execute(name: string, args: any, timeout = 60): Promise<st
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout * 1000);
       try {
-        const resp = await fetch(args.url, { signal: controller.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; openrouter-oneshot/0.1)" }, redirect: "follow" });
+        const resp = await fetch(args.url, { signal: controller.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; oros/0.1)" }, redirect: "follow" });
         if (!resp.ok) return `Error: HTTP ${resp.status} ${resp.statusText}`;
         const html = await resp.text();
         const out = name === "web_md" ? htmlToMd(html) : html;
